@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Artículos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Iconos de Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: VT323 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'VT323', monospace;
+            font-size: 1.35rem;
+            letter-spacing: 0.5px;
+            perspective: 1300px;
+            overflow-x: hidden;
+        }
+        .card-title-responsive {
+            font-size: clamp(0.75rem, 1.2vw + 0.3rem, 1.1rem);
+            line-height: 1.15;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Contenedor principal que se aleja al abrir el modal (Efecto Codrops Effect 10) */
+        #app-container {
+            transition: transform 0.3s, filter 0.3s;
+        }
+
+        body.modal-activo {
+            overflow: hidden; /* Esto desactiva el scroll de la página principal */
+        }
+        body.modal-activo #app-container {
+            filter: blur(3px);
+            pointer-events: none;
+            transition: filter 0.3s;
+        }
+
+        /* Estilo y Animación "Just Me" (Effect 10) para Artículo */
+        #modal-articulo {
+            perspective: 1300px;
+        }
+        #modal-content-box {
+            transform: scale(0.7);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #modal-articulo.activo #modal-content-box {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* Estilo y Animación para el Carrito */
+        #modal-carrito {
+            perspective: 1300px;
+        }
+        #modal-carrito-box {
+            transform: scale(0.7);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #modal-carrito.activo #modal-carrito-box {
+            transform: scale(1);
+            opacity: 1;
+        }
+        /* Scrollbar Minimalista y Redondeado */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #d4d4d8;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #a1a1aa;
+        }
+
+        /* Soporte para Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #d4d4d8 transparent;
+        }
+    </style>
+</head>
+<body class="bg-white text-zinc-900 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- Contenedor general que se desenfoca y aleja al abrir el modal -->
+    <div id="app-container" class="min-h-screen flex flex-col flex-grow">
+        <!-- Header -->
+        <header class="bg-zinc-100 border-b border-zinc-300 sticky top-0 z-50 shadow-md">            
+            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">GESTOR DE ARTÍCULOS</h1>
+                    <p class="text-xs sm:text-sm text-emerald-600 flex items-center gap-1 mt-0.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> CONECTADO A FIREBASE
+                    </p>
+                </div>
+
+                <!-- Botones de Acción en el Header -->
+                <div class="flex items-center space-x-3">
+                    <!-- <button onclick="window.confirmarBorrarTodaBaseDatos()" title="Borrar Toda la Base de Datos" class="relative w-11 h-11 sm:w-12 sm:h-12 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shadow-md transition duration-300 cursor-pointer border border-rose-200">
+                        <i data-lucide="trash-2" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>
+                    </button>-->
+
+                    <button onclick="window.mostrarVistaCategorias()" title="Ver Categorías" class="relative w-11 h-11 sm:w-12 sm:h-12 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center shadow-md transition duration-300 cursor-pointer border border-zinc-300">
+                        <i data-lucide="grid" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>
+                    </button>
+
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-grow w-full">
+            
+            <!-- VISTA 1: SELECCIÓN DE CATEGORÍAS -->
+            <div id="vista-categorias-container" class="space-y-6">
+                <div id="categorias-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+
+            <!-- VISTA 2: LISTADO DE ARTÍCULOS DE LA CATEGORÍA SELECCIONADA -->
+            <div id="vista-articulos-container" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-100 p-4 rounded-2xl border border-zinc-300 shadow-xs">
+                    <div class="flex items-center gap-3">
+                        <button onclick="window.mostrarVistaCategorias()" title="Regresar a Categorías" class="relative w-11 h-11 sm:w-12 sm:h-12 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center shadow-md transition duration-300 cursor-pointer border border-zinc-300 shrink-0 z-20">
+                            <i data-lucide="arrow-left" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>
+                        </button>
+                        <div>
+                            <h2 id="titulo-categoria-activa" class="text-xl sm:text-2xl font-bold text-zinc-900 uppercase">CATEGORÍA</h2>
+                            <p class="text-xs text-zinc-500"><span id="total-items">0</span> artículos en esta categoría</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtros de Orden y Búsqueda -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <!-- Filtro de Orden con Icono -->
+                        <div class="relative" id="filtro-orden-container">
+                            <button id="btn-toggle-orden" onclick="window.toggleFiltroOrden(event)" class="relative w-11 h-11 sm:w-12 sm:h-12 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center shadow-md transition duration-300 cursor-pointer border border-zinc-300 shrink-0 z-20" title="Ordenar artículos">
+                                <i data-lucide="sliders-horizontal" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>
+                            </button>
+                            
+                            <!-- Menú desplegable de opciones -->
+                            <div id="menu-orden-opciones" class="absolute left-0 sm:right-0 sm:left-auto mt-2 w-60 bg-white border border-zinc-300 rounded-xl shadow-lg py-2 hidden z-30">
+                                <button onclick="window.seleccionarOrden('defecto')" class="w-full text-left px-4 py-2 text-base text-zinc-700 hover:bg-zinc-100 transition cursor-pointer">ORDEN: DEFECTO</button>
+                                <button onclick="window.seleccionarOrden('az')" class="w-full text-left px-4 py-2 text-base text-zinc-700 hover:bg-zinc-100 transition cursor-pointer">A - Z</button>
+                                <button onclick="window.seleccionarOrden('za')" class="w-full text-left px-4 py-2 text-base text-zinc-700 hover:bg-zinc-100 transition cursor-pointer">Z - A</button>
+                                <button onclick="window.seleccionarOrden('precio-asc')" class="w-full text-left px-4 py-2 text-base text-zinc-700 hover:bg-zinc-100 transition cursor-pointer">PRECIO: MENOR A MAYOR</button>
+                                <button onclick="window.seleccionarOrden('precio-desc')" class="w-full text-left px-4 py-2 text-base text-zinc-700 hover:bg-zinc-100 transition cursor-pointer">PRECIO: MAYOR A MENOR</button>
+                                <button onclick="window.seleccionarOrden('recientes')" class="w-full text-left px-4 py-2 text-base text-zinc-700 hover:bg-zinc-100 transition cursor-pointer">AGREGADOS RECIENTEMENTE</button>
+                            </div>
+                        </div>
+
+                        <!-- Barra de búsqueda desplegable integrada en el flujo -->
+                        <div class="flex items-center gap-2" id="buscador-container">
+                            <div id="wrapper-input-buscar" class="flex items-center transition-all duration-300 ease-in-out w-0 opacity-0 overflow-hidden pointer-events-none">
+                                <input type="text" id="input-buscar" placeholder="Search..." class="w-48 sm:w-72 md:w-96 px-4 py-2 bg-white border border-zinc-300 rounded-xl text-lg tracking-wider text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-500 shadow-sm">
+                            </div>
+                            <button id="btn-toggle-buscar" onclick="window.toggleBuscador(event)" class="relative w-11 h-11 sm:w-12 sm:h-12 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center shadow-md transition duration-300 cursor-pointer border border-zinc-300 shrink-0 z-20" title="Buscar">
+                                <i id="icono-buscador" data-lucide="search" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid de artículos -->
+                <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4" id="articulos-container">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+
+        </main>
+        <footer class="py-2 mt-auto"></footer>
+    </div>
+
+    <!-- Modal Dinámico (Efecto Just Me) -->
+    <div id="modal-articulo" class="absolute left-0 right-0 min-h-screen bg-zinc-900/40 backdrop-blur-xs hidden justify-center items-center z-50 p-4 transition-all duration-300">
+        <div id="modal-content-box" class="bg-white rounded-2xl w-full max-w-3xl p-6 sm:p-8 shadow-2xl border border-zinc-300 max-h-[90vh] flex flex-col overflow-y-auto">    
+        <!-- VISTA PREVISUALIZACIÓN -->
+            <div id="vista-previa" class="space-y-4">
+                <div class="flex justify-between items-start gap-4 mb-1">
+                    <div class="min-w-0 flex-grow">
+                        <h3 id="preview-titulo" class="text-2xl sm:text-3xl font-bold text-zinc-900 uppercase leading-tight truncate">DETALLE DEL ARTÍCULO</h3>
+                        <p id="preview-expansion" class="text-base sm:text-lg text-zinc-500 uppercase tracking-wide font-normal mt-0.5">EXPANSIÓN</p>
+                    </div>
+                    <div class="flex items-center space-x-3 shrink-0">
+                        <button id="btn-regresar-carrito" onclick="window.regresarAlCarrito()" title="Regresar al Carrito" class="text-zinc-500 hover:text-emerald-600 cursor-pointer hidden">
+                            <i data-lucide="arrow-left" class="w-7 h-7"></i>
+                        </button>
+                        <button onclick="window.cerrarModal()" class="text-zinc-500 hover:text-zinc-800 cursor-pointer">
+                            <i data-lucide="x" class="w-7 h-7"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative h-[26rem] sm:h-[34rem] bg-white p-4 rounded-xl overflow-hidden flex items-center justify-center border border-zinc-300 shadow-inner shrink-0">
+                    <img id="preview-img" src="" alt="Foto Ampliada" class="w-full h-full object-contain rounded-lg">
+                    <div class="absolute bottom-3 left-3 flex items-center gap-2">
+                        <span id="preview-id" class="bg-white/90 text-zinc-800 text-sm font-mono px-3 py-1.5 rounded-md border border-zinc-300 tracking-wider shadow-xs"></span>
+                        <span id="preview-cantidad" class="bg-indigo-100 text-indigo-800 text-sm font-bold px-3 py-1.5 rounded-md border border-indigo-200 tracking-wider shadow-xs">1 PIEZA</span>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-100 p-4 rounded-xl border border-zinc-300 overflow-y-auto max-h-24">
+                    <span class="block text-xs text-zinc-500 uppercase tracking-wider mb-1">DESCRIPCIÓN</span>
+                    <p id="preview-descripcion" class="text-base text-zinc-700 font-sans tracking-normal">Sin descripción.</p>
+                </div>
+
+                <div class="grid  gap-4 bg-zinc-100 p-4 rounded-xl border border-zinc-300 shrink-0">
+                    <div class="text-center border-r border-zinc-300">
+                        <span class="block text-xs sm:text-sm text-zinc-500 uppercase tracking-wider">PRECIO</span>
+                        <span id="preview-precio" class="text-2xl font-bold text-emerald-600">$0.00</span>
+                    </div>
+                </div>
+
+                </div>
+            </div>
+
+            <!-- VISTA FORMULARIO -->
+            <div id="vista-formulario" class="hidden space-y-3">
+                <div class="flex justify-between items-center mb-1">
+                    <h3 id="form-modal-titulo" class="text-lg sm:text-xl font-bold text-zinc-900">EDITAR ARTÍCULO</h3>
+                    <button onclick="window.cerrarModal()" class="text-zinc-500 hover:text-zinc-800 cursor-pointer">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <form id="form-articulo" onsubmit="window.guardarArticulo(event)" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">ID DEL ARTÍCULO</label>
+                            <input type="text" id="form-id" readonly placeholder="Automático" class="w-full px-3 py-2 bg-zinc-200 text-zinc-500 border border-zinc-300 rounded-xl text-base cursor-not-allowed focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">EXPANSIÓN</label>
+                            <input type="text" id="form-expansion" required placeholder="Ej: base game" class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 lowercase focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">NOMBRE DEL ARTÍCULO</label>
+                            <input type="text" id="form-nombre" required placeholder="Ej: FICHAS" class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">CATEGORÍA</label>
+                            <input type="text" id="form-categoria" required placeholder="Ej: COLECCIONABLES" class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">DESCRIPCIÓN</label>
+                        <textarea id="form-descripcion" rows="2" placeholder="Detalles o notas del artículo..." class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 font-sans tracking-normal focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">URL DE LA FOTO</label>
+                        <input type="url" id="form-foto" required placeholder="https://ejemplo.com/imagen.jpg" class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">PRECIO</label>
+                            <input type="number" step="0.01" id="form-precio" required placeholder="19.99" class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">MARGEN</label>
+                            <input type="number" step="0.01" id="form-margen" required placeholder="5.00" class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs sm:text-sm font-semibold text-zinc-600 mb-1">STOCK</label>
+                            <input type="number" id="form-cantidad" min="1" value="1" required class="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-xl text-base text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-3 border-t border-zinc-300">
+                        <!-- Botones de Carga y Actualización por JSON (Estilo idéntico) -->
+                        <div class="flex items-center space-x-2">
+                            <input type="file" id="input-json-file" accept=".json" class="hidden" onchange="window.cargarBaseDatosJson(event)">
+                            <button type="button" onclick="document.getElementById('input-json-file').click()" title="Cargar Base de Datos JSON" class="relative w-11 h-11 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs border border-zinc-300">
+                                <i data-lucide="upload" class="w-5 h-5 stroke-[2.5]"></i>
+                            </button>
+
+                            <input type="file" id="input-json-update-file" accept=".json" class="hidden" onchange="window.actualizarBaseDatosDesdeJson(event)">
+                            <button type="button" onclick="document.getElementById('input-json-update-file').click()" title="Actualizar Precios y Cantidades por JSON" class="relative w-11 h-11 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs border border-zinc-300">
+                                <i data-lucide="refresh-cw" class="w-5 h-5 stroke-[2.5]"></i>
+                            </button>
+                        </div>
+
+                        <!-- Botones de cancelar y guardar -->
+                        <div class="flex items-center space-x-3">
+                            <button type="button" onclick="window.regresarAVistaPrevia()" title="Cancelar" class="relative w-11 h-11 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs border border-zinc-300">
+                                <i data-lucide="x" class="w-6 h-6 stroke-[2.5]"></i>
+                            </button>
+
+                            <button type="submit" id="btn-guardar" title="Guardar" class="relative w-11 h-11 bg-amber-600 rounded-full flex items-center justify-center shadow-md hover:opacity-100 transition cursor-pointer overflow-hidden">
+                                <div class="absolute inset-1 bg-amber-400 rounded-full flex items-center justify-center"></div>
+                                <i data-lucide="check" class="relative w-6 h-6 text-amber-950 stroke-[3]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal de Cargando / Barra de Progreso Pixel Art -->
+    <div id="modal-cargando" class="absolute left-0 right-0 h-screen bg-zinc-900/60 backdrop-blur-sm hidden justify-center items-center z-50 p-4 transition-all duration-300">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-4 border-zinc-900 flex flex-col items-center text-center space-y-4">
+            <h3 id="cargando-titulo" class="text-2xl font-bold text-zinc-900 uppercase tracking-wider">PROCESANDO DATOS...</h3>
+            <p id="cargando-subtitulo" class="text-base text-zinc-600 font-mono">Por favor, espera mientras se actualiza Firebase.</p>
+            
+            <!-- Barra de Progreso Estilo Pixel Art -->
+            <div class="w-full py-4 flex justify-center">
+                <div class="relative w-72 h-10 border-4 border-zinc-800 bg-white flex items-center px-1.5 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+                    <div id="pixel-progress-blocks" class="flex items-center space-x-1.5 w-full overflow-hidden">
+                        <div class="w-6 h-5 bg-emerald-500 animate-pulse"></div>
+                        <div class="w-6 h-5 bg-emerald-500 animate-pulse delay-75"></div>
+                        <div class="w-6 h-5 bg-emerald-500 animate-pulse delay-150"></div>
+                        <div class="w-6 h-5 bg-emerald-500 animate-pulse delay-200"></div>
+                        <div class="w-6 h-5 bg-emerald-500 animate-pulse delay-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cargando-progreso-texto" class="text-lg font-mono font-bold text-emerald-700">0%</div>
+        </div>
+    </div>
+
+    <!-- Lógica de Firebase y Aplicación -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCMrwmj4WSF9Bs84B3nyGb5PWoEGKUn-dE",
+            authDomain: "inventario-509ae.firebaseapp.com",
+            projectId: "inventario-509ae",
+            storageBucket: "inventario-509ae.firebasestorage.app",
+            messagingSenderId: "41986660516",
+            appId: "1:41986660516:web:027c935c37998e69d96e31",
+            measurementId: "G-DVM7YX5CNP"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let listaArticulos = [];
+        let carrito = [];
+        let categoriaSeleccionada = null;
+        let editandoIdDoc = null;
+        let articuloActualIdDoc = null;
+        let abiertoDesdeCarrito = false;
+        let ordenActual = 'defecto';
+
+        window.cambiarOrdenamiento = function() {
+            if (categoriaSeleccionada) {
+                const textoBusqueda = document.getElementById('input-buscar').value;
+                filtrarYRenderizarArticulosDeCategoria(categoriaSeleccionada, textoBusqueda);
+            }
+        };
+
+        function mostrarNotificacionExito() {
+            const toast = document.getElementById('toast-notificacion');
+            toast.style.top = window.scrollY + 'px'; // Centrar en la vista actual del usuario
+            toast.classList.remove('opacity-0', 'scale-50');
+            toast.classList.add('opacity-100', 'scale-100');
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'scale-100');
+                toast.classList.add('opacity-0', 'scale-50');
+            }, 500);
+        }
+
+        async function cargarArticulos() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "articulos"));
+                listaArticulos = [];
+                querySnapshot.forEach((docSnap) => {
+                    listaArticulos.push({ idDoc: docSnap.id, ...docSnap.data() });
+                });
+                
+                if (categoriaSeleccionada) {
+                    filtrarYRenderizarArticulosDeCategoria(categoriaSeleccionada);
+                } else {
+                    renderizarCategorias();
+                }
+            } catch (error) {
+                console.error("Error al cargar artículos: ", error);
+                document.getElementById('categorias-grid').innerHTML = `<div class="col-span-full text-center py-12 text-rose-500 font-medium text-lg">ERROR AL CONECTAR CON FIREBASE.</div>`;
+            }
+        }
+
+        function renderizarCategorias() {
+            const container = document.getElementById('categorias-grid');
+            
+            const categoriasMap = {};
+            listaArticulos.forEach(item => {
+                const cat = (item.categoria || 'SIN CATEGORÍA').toUpperCase();
+                if (!categoriasMap[cat]) {
+                    categoriasMap[cat] = { items: [] };
+                }
+                categoriasMap[cat].items.push(item);
+            });
+
+            const categorias = Object.keys(categoriasMap);
+
+            if (categorias.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-zinc-100 rounded-2xl border border-dashed border-zinc-300 shadow-sm">
+                        <p class="text-zinc-500 text-lg mb-2">NO HAY ARTÍCULOS REGISTRADOS EN FIREBASE.</p>
+                        <button onclick="window.abrirModalNuevo()" class="text-amber-600 font-medium text-lg hover:underline">¡AGREGA EL PRIMERO AQUÍ!</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = categorias.map(cat => {
+                const dataCat = categoriasMap[cat];
+                const totalCount = dataCat.items.length;
+                const primerasFotos = dataCat.items.slice(0, 6);
+
+                let gridFotosHtml = '';
+                for (let i = 0; i < 6; i++) {
+                    if (primerasFotos[i]) {
+                        gridFotosHtml += `<div class="p-1 flex items-center justify-center overflow-hidden"><img src="${primerasFotos[i].foto || 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09'}" class="w-full h-full object-contain"></div>`;
+                    } else {
+                        gridFotosHtml += `<div></div>`;
+                    }
+                }
+
+                return `
+                    <div onclick="window.seleccionarCategoria('${cat}')" class="bg-zinc-100 border border-zinc-300 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-500 hover:shadow-lg hover:scale-[1.02] transition duration-200 cursor-pointer group shadow-sm">
+                        <div class="grid grid-cols-3 gap-2 h-64 sm:h-72 bg-white rounded-xl p-3 overflow-hidden mb-4 border border-zinc-200">
+                            ${gridFotosHtml}
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-zinc-900 uppercase tracking-wide truncate">${cat}</h3>
+                            <p class="text-xs sm:text-sm text-zinc-500 mt-1">${totalCount} ${totalCount === 1 ? 'ARTÍCULO' : 'ARTÍCULOS'}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        window.seleccionarCategoria = function(categoria) {
+            categoriaSeleccionada = categoria;
+            document.getElementById('titulo-categoria-activa').textContent = categoria;
+            document.getElementById('input-buscar').value = '';
+            window.cerrarBuscadorDesplegable();
+
+            document.getElementById('vista-categorias-container').classList.add('hidden');
+            document.getElementById('vista-articulos-container').classList.remove('hidden');
+
+            filtrarYRenderizarArticulosDeCategoria(categoria);
+        }
+
+        window.mostrarVistaCategorias = function() {
+            categoriaSeleccionada = null;
+            ordenActual = 'defecto';
+            document.getElementById('vista-articulos-container').classList.add('hidden');
+            document.getElementById('vista-categorias-container').classList.remove('hidden');
+            renderizarCategorias();
+        }
+
+        function filtrarYRenderizarArticulosDeCategoria(categoria, filtroTexto = '') {
+            let articulosFiltrados = listaArticulos.filter(item => {
+                const catItem = (item.categoria || 'SIN CATEGORÍA').toUpperCase();
+                const coincideCat = catItem === categoria;
+                
+                const texto = filtroTexto.toLowerCase();
+                const coincideTexto = !texto || (
+                    (item.nombre || '').toLowerCase().includes(texto) || 
+                    (item.expansion || '').toLowerCase().includes(texto) || 
+                    (item.categoria || '').toLowerCase().includes(texto) || 
+                    (item.id || '').toLowerCase().includes(texto) ||
+                    (item.descripcion || '').toLowerCase().includes(texto)
+                );
+
+                return coincideCat && coincideTexto;
+            });
+
+            const tipoOrden = ordenActual;
+            articulosFiltrados.sort((a, b) => {
+                const nombreA = (a.nombre || '').toUpperCase();
+                const nombreB = (b.nombre || '').toUpperCase();
+                const precioA = Number(a.precio || 0);
+                const precioB = Number(b.precio || 0);
+
+                if (tipoOrden === 'az') return nombreA.localeCompare(nombreB);
+                if (tipoOrden === 'za') return nombreB.localeCompare(nombreA);
+                if (tipoOrden === 'precio-asc') return precioA - precioB;
+                if (tipoOrden === 'precio-desc') return precioB - precioA;
+                if (tipoOrden === 'recientes') {
+                    return 1;
+                }
+                return 0;
+            });
+
+            renderizarArticulos(articulosFiltrados);
+        }
+
+        function renderizarArticulos(articulos) {
+            const container = document.getElementById('articulos-container');
+            const totalItemsEl = document.getElementById('total-items');
+            totalItemsEl.textContent = articulos.length;
+
+            if (articulos.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-zinc-100 rounded-2xl border border-dashed border-zinc-300 shadow-sm">
+                        <p class="text-zinc-500 text-lg mb-2">NO SE ENCONTRARON ARTÍCULOS.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = articulos.map(item => {
+                const nombreMayus = (item.nombre || '').toUpperCase();
+                const stock = Number(item.cantidad || 1);
+
+                return `
+                    <div onclick="window.abrirVistaPrevia('${item.idDoc}', false)" class="bg-zinc-100 rounded-xl overflow-hidden hover:shadow-md hover:scale-[1.02] transition-transform duration-200 cursor-pointer flex flex-col justify-between group p-3 border border-zinc-300 shadow-xs">
+                        <div class="pb-2 text-center">
+                            <h3 class="card-title-responsive font-bold text-zinc-900 uppercase w-full" title="${nombreMayus}">${nombreMayus}</h3>
+                        </div>
+                        <div class="relative h-32 sm:h-40 bg-white p-1 overflow-hidden flex items-center justify-center rounded-lg border border-zinc-200">
+                            <img src="${item.foto || 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09'}" alt="${nombreMayus}" class="w-full h-full object-contain rounded-md transition">
+                            ${stock > 1 ? `<span class="absolute top-2 right-2 bg-zinc-700 text-white text-xs font-bold px-1.5 py-0.5 rounded-md shadow-xs z-10">x${stock}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        window.abrirVistaPrevia = function(idDoc, desdeCarrito = false) {
+            const item = listaArticulos.find(art => art.idDoc === idDoc);
+            if (!item) return;
+
+            editandoIdDoc = idDoc;
+            articuloActualIdDoc = idDoc;
+            abiertoDesdeCarrito = desdeCarrito;
+
+            const modalArticulo = document.getElementById('modal-articulo');
+            modalArticulo.style.top = window.scrollY + 'px';
+
+            const btnRegresar = document.getElementById('btn-regresar-carrito');
+            if (abiertoDesdeCarrito) {
+                btnRegresar.classList.remove('hidden');
+            } else {
+                btnRegresar.classList.add('hidden');
+            }
+
+            const cant = Number(item.cantidad || 1);
+            document.getElementById('preview-titulo').textContent = (item.nombre || '').toUpperCase();
+            document.getElementById('preview-expansion').textContent = (item.expansion || 'N/A').toUpperCase();
+            document.getElementById('preview-id').textContent = `#${item.id || 'N/A'}`;
+            document.getElementById('preview-cantidad').textContent = `${cant} ${cant === 1 ? 'PIEZA' : 'PIEZAS'}`;
+            document.getElementById('preview-descripcion').textContent = item.descripcion || 'Sin descripción registrada.';
+            document.getElementById('preview-precio').textContent = `$${Number(item.precio || 0).toFixed(2)}`;
+            document.getElementById('preview-img').src = item.foto || 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09';
+
+            const modalBox = document.getElementById('modal-content-box');
+            modalBox.classList.remove('max-w-lg');
+            modalBox.classList.add('max-w-3xl');
+
+            document.getElementById('vista-previa').classList.remove('hidden');
+            document.getElementById('vista-formulario').classList.add('hidden');
+
+            const modal = document.getElementById('modal-articulo');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            document.body.classList.add('modal-activo');
+            setTimeout(() => modal.classList.add('activo'), 10);
+
+            lucide.createIcons();
+        }
+
+
+        window.cambiarAVistaFormulario = function() {
+            const item = listaArticulos.find(art => art.idDoc === editandoIdDoc);
+            if (!item) return;
+
+            document.getElementById('form-id').value = item.id || '';
+            document.getElementById('form-expansion').value = (item.expansion || '').toLowerCase();
+            document.getElementById('form-nombre').value = (item.nombre || '').toUpperCase();
+            document.getElementById('form-categoria').value = (item.categoria || '').toUpperCase();
+            document.getElementById('form-descripcion').value = item.descripcion || '';
+            document.getElementById('form-foto').value = item.foto || '';
+            document.getElementById('form-precio').value = item.precio || '';
+            document.getElementById('form-margen').value = item.margen || '';
+            document.getElementById('form-cantidad').value = item.cantidad || 1;
+
+            document.getElementById('form-modal-titulo').textContent = "EDITAR ARTÍCULO";
+
+            const modalBox = document.getElementById('modal-content-box');
+            modalBox.classList.remove('max-w-3xl');
+            modalBox.classList.add('max-w-lg');
+
+            document.getElementById('btn-regresar-carrito').classList.add('hidden');
+            document.getElementById('vista-previa').classList.add('hidden');
+            document.getElementById('vista-formulario').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        window.regresarAVistaPrevia = function() {
+            if (!editandoIdDoc) {
+                window.cerrarModal();
+                return;
+            }
+            window.abrirVistaPrevia(editandoIdDoc, abiertoDesdeCarrito);
+        }
+
+        window.cerrarModal = function() {
+            const modal = document.getElementById('modal-articulo');
+            modal.classList.remove('activo');
+            document.body.classList.remove('modal-activo');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        const btnToggleBuscar = document.getElementById('btn-toggle-buscar');
+        const wrapperInput = document.getElementById('wrapper-input-buscar');
+        const inputBuscar = document.getElementById('input-buscar');
+
+        window.toggleBuscador = function(e) {
+            e.stopPropagation();
+            const isOpen = wrapperInput.classList.contains('w-0');
+            if (isOpen) {
+                wrapperInput.classList.remove('w-0', 'opacity-0', 'pointer-events-none');
+                wrapperInput.classList.add('w-48', 'sm:w-72', 'md:w-96', 'opacity-100', 'pointer-events-auto');
+                
+                btnToggleBuscar.innerHTML = '<i id="icono-buscador" data-lucide="x" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>';
+                lucide.createIcons();
+                inputBuscar.focus();
+            } else {
+                window.cerrarBuscadorDesplegable();
+            }
+        };
+
+        window.cerrarBuscadorDesplegable = function() {
+            if (!wrapperInput.classList.contains('w-0')) {
+                wrapperInput.classList.remove('w-48', 'sm:w-72', 'md:w-96', 'opacity-100', 'pointer-events-auto');
+                wrapperInput.classList.add('w-0', 'opacity-0', 'pointer-events-none');
+
+                btnToggleBuscar.innerHTML = '<i id="icono-buscador" data-lucide="search" class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]"></i>';
+                lucide.createIcons();
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            const container = document.getElementById('buscador-container');
+            if (container && !container.contains(e.target)) {
+                window.cerrarBuscadorDesplegable();
+            }
+        });
+
+        inputBuscar.addEventListener('input', (e) => {
+            const texto = e.target.value;
+            if (categoriaSeleccionada) {
+                filtrarYRenderizarArticulosDeCategoria(categoriaSeleccionada, texto);
+            }
+        });
+
+        window.toggleFiltroOrden = function(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('menu-orden-opciones');
+            menu.classList.toggle('hidden');
+        };
+
+        window.seleccionarOrden = function(tipo) {
+            ordenActual = tipo;
+            document.getElementById('menu-orden-opciones').classList.add('hidden');
+            if (categoriaSeleccionada) {
+                const textoBusqueda = document.getElementById('input-buscar').value;
+                filtrarYRenderizarArticulosDeCategoria(categoriaSeleccionada, textoBusqueda);
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            const container = document.getElementById('filtro-orden-container');
+            if (container && !container.contains(e.target)) {
+                document.getElementById('menu-orden-opciones').classList.add('hidden');
+            }
+        });
+
+        let modoAccionGlobal = null; // Para saber qué acción confirmará el modal
+
+        window.mostrarModalCargando = function(titulo, subtitulo) {
+            const modal = document.getElementById('modal-cargando');
+            modal.style.top = window.scrollY + 'px';
+            document.getElementById('cargando-titulo').textContent = titulo || 'PROCESANDO...';
+            document.getElementById('cargando-subtitulo').textContent = subtitulo || 'Por favor, espera...';
+            document.getElementById('cargando-progreso-texto').textContent = '0%';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('modal-activo');
+        };
+
+        window.actualizarProgresoCargando = function(porcentaje) {
+            const pct = Math.min(100, Math.max(0, porcentaje));
+            document.getElementById('cargando-progreso-texto').textContent = pct + '%';
+            
+            const numBloques = Math.round((pct / 100) * 8);
+            let bloquesHtml = '';
+            for (let i = 0; i < numBloques; i++) {
+                bloquesHtml += `<div class="w-6 h-5 bg-emerald-500 animate-pulse"></div>`;
+            }
+            document.getElementById('pixel-progress-blocks').innerHTML = bloquesHtml;
+        };
+
+        window.ocultarModalCargando = function() {
+            const modal = document.getElementById('modal-cargando');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            document.body.classList.remove('modal-activo');
+        };
+
+        cargarArticulos();
+    </script>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
